@@ -1,9 +1,19 @@
-from pprint import PrettyPrinter
-from math import sqrt
-import numpy as np
-from numpy import linalg as LA
-from pprint import pprint
-from matplotlib.pylab import *
+import math
+try:
+    import numpy as np
+    from numpy import linalg as LA
+except:
+    print("Install numpy: sudo aptitude install python-numpy")
+
+try:
+    from matplotlib.pylab import *
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib import cm
+    from matplotlib.colors import LogNorm
+    import matplotlib.pyplot as plt
+except:
+    print("(Optional) Install matplotlib: sudo aptitude install python-matplotlib")
+
 
 def cholesky(A):
     # Source: http://www.quantstart.com/articles/Cholesky-Decomposition-in-Python-and-NumPy
@@ -22,7 +32,7 @@ def cholesky(A):
 
             if (i == k): # Diagonal elements
                 # LaTeX: l_{kk} = \sqrt{ a_{kk} - \sum^{k-1}_{j=1} l^2_{kj}}
-                L[i][k] = sqrt(A[i][i] - tmp_sum)
+                L[i][k] = math.sqrt(A[i][i] - tmp_sum)
             else:
                 # LaTeX: l_{ik} = \frac{1}{l_{kk}} \left( a_{ik} - \sum^{k-1}_{j=1} l_{ij} l_{kj} \right)
                 L[i][k] = (1.0 / L[k][k] * (A[i][k] - tmp_sum))
@@ -38,11 +48,13 @@ def cholesky(A):
 def solve_equations(hessian_value, gradient_value):
     try:
         L = cholesky(hessian_value)
+        #L = LA.cholesky(A)
+        #np.dot(L, L.T.conj())
         hessian_inverse = LA.inv(hessian_value)
         dk = np.dot(hessian_inverse, gradient_value)
     except:
         dk = -gradient_value
-    return L, dk
+    return dk
 
 def linear_search_backtracking(function, current_x, dk, gdk, function_value, c1):
     wolfe1 = False
@@ -80,7 +92,7 @@ def newton_solve(function, x0, gradient, hessian, **kwargs):
     continue_iterating = True
 
     data = [['Iteration', 'f(x_k)', '||gf(x_k)||', '||dk||', 'alpha', 'x[0]', 'x[1]']]
-    print('{0: ^10}\t{0: ^10}\t{0: ^10}\t{0: ^10}\t{0: ^10}\t{0: ^10}\t{0: ^10}'.format(
+    print('{0: ^10}\t{1: ^10}\t{2: ^10}\t{3: ^10}\t{4: ^10}\t{5: ^10}\t{6: ^10}'.format(
         'Iteration', 'f(x_k)', '||gf(x_k)||', '||dk||', 'alpha', 'x[0]', 'x[1]'
     ))
 
@@ -93,7 +105,7 @@ def newton_solve(function, x0, gradient, hessian, **kwargs):
         if not continue_iterating:
             return current_x
         # Solve the equation Ax=b equivalent to Hessian*x = -gradient_value
-        L, dk = solve_equations(hessian_value, -gradient_value)
+        dk = solve_equations(hessian_value, -gradient_value)
 
         gdk = np.dot(gradient_value, np.transpose(dk))
         snorm = math.sqrt(np.dot(dk, dk))
@@ -106,7 +118,7 @@ def newton_solve(function, x0, gradient, hessian, **kwargs):
         alpha_min = 0.1 * stolerance / snorm
 
         data.append([iteration, function_value_temp, gnorm, snorm, alpha, current_x[0], current_x[1]])
-        print('{:10.4f}\t{:10.4f}\t{:10.4f}\t{:10.4f}\t{:10.4f}\t{:10.4f}\t{:10.4f}'.format(
+        print('{:15.8f}\t{:15.8f}\t{:15.8f}\t{:15.8f}\t{:15.8f}\t{:15.8f}\t{:15.8f}'.format(
             iteration, function_value_temp, gnorm, snorm, alpha, current_x[0], current_x[1]
         ))
 
@@ -134,17 +146,115 @@ def rosen_hessian(x):
         (-400*x[0],                     200)
     ))
 
-def plot(function):
-    x = arange(-1.5, 1.5, 0.01)
-    y = arange(-0.5, 1.5, 0.01)
-    [X,Y] = meshgrid(x, y)
+def rosen_function_interface(x, y):
+    return rosen_function([x, y])
+
+def plot_contour(function):
+    #x = arange(-1.5, 1.5, 0.01)
+    #y = arange(-0.5, 1.5, 0.01)
+    x = arange(-100, 250, 50)
+    y = arange(-100, 250, 50)
+    [X, Y] = meshgrid(x, y)
     Z = function(X, Y)
-    contour(Z, x=X, y=Y, levels = 50)
-    show()
+#    XY = map(zip, x, y)
+#    Z = map(function, XY)
+#    import ipdb; ipdb.set_trace() # BREAKPOINT
+    plt.figure()
+    im = plt.imshow(Z, interpolation='bilinear', origin='lower',
+                    cmap=cm.gray, extent=(-3,3,-2,2))
+    levels = np.arange(-1.2, 1.6, 0.2)
+    CS = plt.contour(Z, levels,
+                    origin='lower',
+                    linewidths=2,
+                    extent=(-3,3,-2,2))
+
+    #Thicken the zero contour.
+    zc = CS.collections[6]
+    plt.setp(zc, linewidth=4)
+
+    plt.clabel(CS, levels[1::2],  # label every second level
+            inline=1,
+            fmt='%1.1f',
+            fontsize=14)
+
+    # make a colorbar for the contour lines
+    CB = plt.colorbar(CS, shrink=0.8, extend='both')
+
+    plt.title('Lines with colorbar')
+    #plt.hot()  # Now change the colormap for the contour lines and colorbar
+    plt.flag()
+
+    # We can still add a colorbar for the image, too.
+    CBI = plt.colorbar(im, orientation='horizontal', shrink=0.8)
+
+    # This makes the original colorbar look a bit out of place,
+    # so let's improve its position.
+
+    l,b,w,h = plt.gca().get_position().bounds
+    ll,bb,ww,hh = CB.ax.get_position().bounds
+    CB.ax.set_position([ll, b+0.1*h, ww, h*0.8])
+
+
+    plt.show()
+
+    #contour(Z, x=X, y=Y, levels = 50)
+    #show()
+
+# All the functions works for many variables except for this one that only works
+# for two variables. An interface mapping function is needed. I could not
+# evaluate the meshgrid function using first class functions with arrays =(
+def plot_function(function):
+    fig = plt.figure()
+    #ax = Axes3D(fig, azim = -128, elev = 43)
+    #ax = Axes3D(fig, azim = 115, elev =45)
+    ax = Axes3D(fig, azim = 115, elev =90)
+
+    s = .05
+    X = np.arange(-2, 2.+s, s) #arange(start,finish,increment), stores resulting vector in X
+    Y = np.arange(-1, 3.+s, s)
+    X, Y = np.meshgrid(X, Y)   #create the mesh grid
+    Z = map(function, X, Y) #(1.-X)**2 + 100.*(Y-X*X)**2 # rosenbrock function
+    ax.plot_surface(X, Y, Z, rstride = 1, cstride = 1, norm = LogNorm(), cmap = cm.jet)
+    CS = plt.contour(X, Y, Z) #plot contour
+    plt.clabel(CS,inline=1, fontsize=10)
+    import ipdb; ipdb.set_trace() # BREAKPOINT
+    CB = plt.colorbar(CS, shrink=0.8, extend='both')  #colorbar
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.show()
 
 #x0 = np.transpose([-2, -1])
 #x0 = np.transpose([0, -3])
 x0 = np.transpose([-2, 3])
 dk=None
 x, _ = newton_solve(rosen_function, x0, rosen_gradient, rosen_hessian)
-print('Resultado = {}'.format(x))
+print('Solution = {}'.format(x))
+#plot_function(rosen_function_interface)
+try:
+#    import ipdb; ipdb.set_trace() # BREAKPOINT
+#    plot_function(rosen_function_interface)
+    #plot_contour(rosen_function_interface)
+    pass
+except:
+    print('Matplotlib not installed, can not plot')
+
+
+#def convex_function(x):
+#    return 0.875*x[0]**2 + 0.8*x[1]**2 -350*x[0] - 300*x[1]
+#
+#def convex_gradient(x):
+#    return np.array((
+#        1.75*x[0] - 350,
+#        1.6*x[1] - 300
+#    ))
+#
+#def convex_hessian(x):
+#    return np.array((
+#        (1.75,   0),
+#        (0,    1.6)
+#    ))
+#
+#x0 = np.transpose([0, 0])
+#x, _ = newton_solve(convex_function, x0, convex_gradient, convex_hessian)
+#print('Solution = {}'.format(x))
+##plot(convex_function)
