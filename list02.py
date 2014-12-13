@@ -1,4 +1,5 @@
 import math
+
 try:
     import numpy as np
     from numpy import linalg as LA
@@ -16,10 +17,13 @@ except:
 
 
 def cholesky(A):
-    # Source: http://www.quantstart.com/articles/Cholesky-Decomposition-in-Python-and-NumPy
-    """Performs a Cholesky decomposition of A, which must
+    """
+    Performs a Cholesky decomposition of A, which must
     be a symmetric and positive definite matrix. The function
-    returns the lower variant triangular matrix, L."""
+    returns the lower variant triangular matrix, L.
+    This code snippet has been taken from [1].
+    [1] http://www.quantstart.com/articles/Cholesky-Decomposition-in-Python-and-NumPy
+    """
     n = len(A)
 
     # Create zero matrix for L
@@ -46,6 +50,10 @@ def cholesky(A):
 
 
 def solve_equations(hessian_value, gradient_value):
+    """
+    Solves the equation system given by the hessian and the gradient.
+    It returns the dk (direction) vector
+    """
     try:
         L = cholesky(hessian_value)
         #L = LA.cholesky(A)
@@ -56,7 +64,12 @@ def solve_equations(hessian_value, gradient_value):
         dk = -gradient_value
     return dk
 
+
 def linear_search_backtracking(function, current_x, dk, gdk, function_value, c1):
+    """
+    Perform a linear search.
+    It returns the alpha, x and f(x)
+    """
     wolfe1 = False
     alpha = 1
     while not wolfe1:
@@ -74,11 +87,16 @@ def linear_search_backtracking(function, current_x, dk, gdk, function_value, c1)
     #    wolfe2 = l2 >= r2
     return alpha, next_x, l1
 
+
 def newton_solve(function, x0, gradient, hessian, **kwargs):
+    """
+    Newton line search method.
+    It returns x* the optimum value and the history of the iterations
+    """
     gtolerance = kwargs.get('gtolerance', 1.0e-10)
     stolerance = kwargs.get('stolerance', 1.0e-10)
     max_iterations = kwargs.get('max_iterations', 100)
-    tolerance2 = kwargs.get('theta', 0.9)
+    #tolerance2 = kwargs.get('theta', 0.9)
     c1 = kwargs.get('c1', 1.0e-4)
     c2 = kwargs.get('c2', 1.0e-4)
     #dk = kwargs.get('dk', None)
@@ -131,23 +149,69 @@ def newton_solve(function, x0, gradient, hessian, **kwargs):
             iteration <= max_iterations
     return current_x, data
 
+
+def plot_function(function):
+    """
+    Plots the function.
+    All the functions works for many variables except for this one that only works
+    for two variables. An interface mapping function is needed. I could not
+    evaluate the meshgrid function using first class functions with arrays =(
+    """
+    fig = plt.figure()
+    #ax = Axes3D(fig, azim = -128, elev = 43)
+    #ax = Axes3D(fig, azim = 115, elev =45)
+    ax = Axes3D(fig, azim = 115, elev =90)
+
+    s = .05
+    X = np.arange(-2, 2.+s, s) #arange(start,finish,increment), stores resulting vector in X
+    Y = np.arange(-1, 3.+s, s)
+    X, Y = np.meshgrid(X, Y)   #create the mesh grid
+    Z = map(function, X, Y) #(1.-X)**2 + 100.*(Y-X*X)**2 # rosenbrock function
+    ax.plot_surface(X, Y, Z, rstride = 1, cstride = 1, norm = LogNorm(), cmap = cm.jet)
+    CS = plt.contour(X, Y, Z) #plot contour
+    plt.clabel(CS,inline=1, fontsize=10)
+    CB = plt.colorbar(CS, shrink=0.8, extend='both')  #colorbar
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.show()
+
+
 def rosen_function(x):
+    """
+    The testing function: The classic Rosenbrock function[1] has been chosen,
+    [1]: https://en.wikipedia.org/wiki/Rosenbrock_function
+    """
     return (1 - x[0])**2 + 100*(x[1] - x[0]**2)**2
 
+
 def rosen_gradient(x):
+    """
+    The gradient of the testing function
+    """
     return np.array((
         -2*(1 - x[0]) - 400*x[0]*(x[1] - x[0]**2),
         200*(x[1] - x[0]**2)
     ))
 
+
 def rosen_hessian(x):
+    """
+    The hessian of the testing function
+    """
     return np.array((
         (2 - 400*x[1] + 1200*x[0]**2,   -400*x[0]),
         (-400*x[0],                     200)
     ))
 
+
 def rosen_function_interface(x, y):
+    """
+    This is an interface for the evaluation of the function,
+    This function is only used for ploting purposes,
+    unfortunately I could not do this using the rosen_function directly
+    """
     return rosen_function([x, y])
+
 
 def plot_contour(function):
     #x = arange(-1.5, 1.5, 0.01)
@@ -200,28 +264,6 @@ def plot_contour(function):
     #contour(Z, x=X, y=Y, levels = 50)
     #show()
 
-# All the functions works for many variables except for this one that only works
-# for two variables. An interface mapping function is needed. I could not
-# evaluate the meshgrid function using first class functions with arrays =(
-def plot_function(function):
-    fig = plt.figure()
-    #ax = Axes3D(fig, azim = -128, elev = 43)
-    #ax = Axes3D(fig, azim = 115, elev =45)
-    ax = Axes3D(fig, azim = 115, elev =90)
-
-    s = .05
-    X = np.arange(-2, 2.+s, s) #arange(start,finish,increment), stores resulting vector in X
-    Y = np.arange(-1, 3.+s, s)
-    X, Y = np.meshgrid(X, Y)   #create the mesh grid
-    Z = map(function, X, Y) #(1.-X)**2 + 100.*(Y-X*X)**2 # rosenbrock function
-    ax.plot_surface(X, Y, Z, rstride = 1, cstride = 1, norm = LogNorm(), cmap = cm.jet)
-    CS = plt.contour(X, Y, Z) #plot contour
-    plt.clabel(CS,inline=1, fontsize=10)
-    import ipdb; ipdb.set_trace() # BREAKPOINT
-    CB = plt.colorbar(CS, shrink=0.8, extend='both')  #colorbar
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.show()
 
 #x0 = np.transpose([-2, -1])
 #x0 = np.transpose([0, -3])
@@ -229,16 +271,14 @@ x0 = np.transpose([-2, 3])
 dk=None
 x, _ = newton_solve(rosen_function, x0, rosen_gradient, rosen_hessian)
 print('Solution = {}'.format(x))
-#plot_function(rosen_function_interface)
 try:
-#    import ipdb; ipdb.set_trace() # BREAKPOINT
-#    plot_function(rosen_function_interface)
+    plot_function(rosen_function_interface)
     #plot_contour(rosen_function_interface)
-    pass
 except:
     print('Matplotlib not installed, can not plot')
 
 
+# Another test
 #def convex_function(x):
 #    return 0.875*x[0]**2 + 0.8*x[1]**2 -350*x[0] - 300*x[1]
 #
